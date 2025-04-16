@@ -13,6 +13,7 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
 
+
 @app.after_request
 def add_cors_headers(response):
     origin = request.headers.get('Origin')
