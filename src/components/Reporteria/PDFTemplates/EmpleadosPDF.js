@@ -9,6 +9,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4E342E',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginBottom: 5,
+  },
   table: {
     display: "table",
     width: "auto",
@@ -45,15 +55,24 @@ const styles = StyleSheet.create({
     margin: 5,
     fontSize: 10,
   },
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 10,
+    color: '#666',
+  },
 });
 
 const EmpleadosPDF = ({ empleados }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text>Sistema de Gestión de Café</Text>
-        <Text>Listado de Empleados</Text>
-        <Text>Fecha: {new Date().toLocaleDateString()}</Text>
+        <Text style={styles.title}>Listado de Empleados</Text>
+        <Text style={styles.subtitle}>Sistema de Gestión de Café</Text>
+        <Text style={styles.subtitle}>Fecha: {new Date().toLocaleDateString()}</Text>
       </View>
       
       <View style={styles.table}>
@@ -90,10 +109,14 @@ const EmpleadosPDF = ({ empleados }) => (
               <Text style={styles.tableCell}>{empleado.telefono}</Text>
             </View>
             <View style={styles.tableCol}>
-              <Text style={styles.tableCell}>{empleado.fecha_ingreso}</Text>
+              <Text style={styles.tableCell}>{new Date(empleado.fecha_ingreso).toLocaleDateString()}</Text>
             </View>
           </View>
         ))}
+      </View>
+      
+      <View style={styles.footer}>
+        <Text>Página {({ pageNumber, totalPages }) => `${pageNumber} de ${totalPages}`}</Text>
       </View>
     </Page>
   </Document>
