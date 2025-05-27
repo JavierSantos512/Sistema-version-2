@@ -13,6 +13,9 @@ import AsignacionList from './components/Asignaciones/AsignacionList';
 import PagoForm from './components/Pagos/PagoForm';
 import PagoList from './components/Pagos/PagoList';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import Reporteria from './components/Reporteria/Reporteria';
+import EmpleadosReporte from './components/Reporteria/EmpleadosReporte';
+import PagosReporte from './components/Reporteria/PagosReporte';
 
 const theme = createTheme({
   palette: {
@@ -53,6 +56,11 @@ function App() {
             {/* Pagos */}
             <Route path="/pagos" element={<ProtectedRoute><PagoList /></ProtectedRoute>} />
             <Route path="/pagos/nuevo" element={<ProtectedRoute><PagoForm /></ProtectedRoute>} />
+            
+            {/* Reportería */}
+            <Route path="/reporteria" element={<ProtectedRoute><Reporteria /></ProtectedRoute>} />
+            <Route path="/reporteria/empleados" element={<ProtectedRoute><EmpleadosReporte /></ProtectedRoute>} />
+            <Route path="/reporteria/pagos" element={<ProtectedRoute><PagosReporte /></ProtectedRoute>} />
           </Routes>
         </Layout>
       </Router>

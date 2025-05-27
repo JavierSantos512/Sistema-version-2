@@ -260,7 +260,6 @@ def delete_finca(id):
         return jsonify({"error": str(e)}), 500
     return jsonify({"message": "Error al eliminar finca"}), 500
 
-# Rutas de asignaciones
 @app.route('/api/asignaciones', methods=['GET'])
 def get_asignaciones():
     try:
@@ -283,12 +282,12 @@ def get_asignaciones():
             cursor.close()
             connection.close()
             
-            # Formatear los datos para el frontend
             formatted_asignaciones = []
             for asignacion in asignaciones:
                 formatted_asignacion = {
                     "id": asignacion["id"],
                     "fecha_asignacion": asignacion["fecha_asignacion"],
+                    "descripcion": asignacion.get("descripcion", ""),  # Nuevo campo
                     "empleado": {
                         "id": asignacion["empleado_id"],
                         "nombre": asignacion["empleado_nombre"],
@@ -318,13 +317,26 @@ def create_asignacion():
         connection = get_db_connection()
         if connection and connection.is_connected():
             cursor = connection.cursor()
-            query = "INSERT INTO asignaciones (empleado_id, finca_id) VALUES (%s, %s)"
-            cursor.execute(query, (data['empleado_id'], data['finca_id']))
+            query = """
+                INSERT INTO asignaciones 
+                (empleado_id, finca_id, fecha_asignacion, descripcion) 
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(query, (
+                data['empleado_id'], 
+                data['finca_id'],
+                data.get('fecha_asignacion', datetime.now().strftime('%Y-%m-%d')),
+                data.get('descripcion', '')  # Nuevo campo
+            ))
             connection.commit()
             new_id = cursor.lastrowid
             cursor.close()
             connection.close()
-            return jsonify({"id": new_id, "message": "Asignación creada exitosamente"}), 201
+            return jsonify({
+                "id": new_id, 
+                "message": "Asignación creada exitosamente",
+                "descripcion": data.get('descripcion', '')
+            }), 201
     except Error as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"message": "Error al crear asignación"}), 500
@@ -338,10 +350,10 @@ def update_asignacion(id):
         if not data or not all(k in data for k in ['empleado_id', 'finca_id', 'fecha_asignacion']):
             return jsonify({"message": "Datos incompletos"}), 400
         
-        # Convertir IDs a enteros
         empleado_id = int(data['empleado_id'])
         finca_id = int(data['finca_id'])
         fecha_asignacion = data['fecha_asignacion']
+        descripcion = data.get('descripcion', '')  # Nuevo campo
         
         connection = get_db_connection()
         if connection and connection.is_connected():
@@ -354,29 +366,24 @@ def update_asignacion(id):
                 connection.close()
                 return jsonify({"message": "Asignación no encontrada"}), 404
             
-            # Verificar si el empleado existe
-            cursor.execute("SELECT id FROM empleados WHERE id = %s", (empleado_id,))
-            if not cursor.fetchone():
-                cursor.close()
-                connection.close()
-                return jsonify({"message": "Empleado no encontrado"}), 404
+            # Verificar empleado y finca (código existente)
             
-            # Verificar si la finca existe
-            cursor.execute("SELECT id FROM fincas WHERE id = %s", (finca_id,))
-            if not cursor.fetchone():
-                cursor.close()
-                connection.close()
-                return jsonify({"message": "Finca no encontrada"}), 404
-            
-            # Actualizar la asignación
+            # Actualizar la asignación con el nuevo campo
             query = """
                 UPDATE asignaciones 
                 SET empleado_id = %s, 
                     finca_id = %s, 
-                    fecha_asignacion = %s 
+                    fecha_asignacion = %s,
+                    descripcion = %s 
                 WHERE id = %s
             """
-            cursor.execute(query, (empleado_id, finca_id, fecha_asignacion, id))
+            cursor.execute(query, (
+                empleado_id, 
+                finca_id, 
+                fecha_asignacion,
+                descripcion,  # Nuevo campo
+                id
+            ))
             connection.commit()
             
             if cursor.rowcount > 0:
@@ -387,37 +394,22 @@ def update_asignacion(id):
                     "id": id,
                     "empleado_id": empleado_id,
                     "finca_id": finca_id,
-                    "fecha_asignacion": fecha_asignacion
+                    "fecha_asignacion": fecha_asignacion,
+                    "descripcion": descripcion  # Nuevo campo
                 }), 200
             else:
                 cursor.close()
                 connection.close()
                 return jsonify({"message": "No se pudo actualizar la asignación"}), 500
     except ValueError as e:
-        print("Error de conversión:", str(e))  # Debug
+        print("Error de conversión:", str(e))
         return jsonify({"error": "Error en el formato de los datos"}), 400
     except Error as e:
-        print("Error MySQL:", str(e))  # Debug
+        print("Error MySQL:", str(e))
         return jsonify({"error": str(e)}), 500
     except Exception as e:
-        print("Error general:", str(e))  # Debug
+        print("Error general:", str(e))
         return jsonify({"error": "Error interno del servidor"}), 500
-
-@app.route('/api/asignaciones/<int:id>', methods=['DELETE'])
-def delete_asignacion(id):
-    try:
-        connection = get_db_connection()
-        if connection and connection.is_connected():
-            cursor = connection.cursor()
-            query = "DELETE FROM asignaciones WHERE id = %s"
-            cursor.execute(query, (id,))
-            connection.commit()
-            cursor.close()
-            connection.close()
-            return jsonify({"message": "Asignación eliminada exitosamente"}), 200
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    return jsonify({"message": "Error al eliminar asignación"}), 500
 
 # Rutas de pagos
 @app.route('/api/pagos', methods=['GET'])

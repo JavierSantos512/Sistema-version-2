@@ -1,7 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, TextField, Typography, Container, Paper, MenuItem } from '@mui/material';
+import { 
+  Box, 
+  Button, 
+  TextField, 
+  Typography, 
+  Container, 
+  Paper, 
+  MenuItem,
+  Alert,
+  AlertTitle,
+} from '@mui/material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { styled } from '@mui/system';
+
+// Componentes estilizados
+const StyledContainer = styled(Container)(({ theme }) => ({
+  backgroundColor: '#f5f5dc',
+  minHeight: '100vh',
+  padding: theme.spacing(4),
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+}));
+
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  background: 'linear-gradient(145deg, #ffffff, #f8f4e5)',
+  borderRadius: '16px',
+  boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+  padding: theme.spacing(4),
+  width: '100%',
+  maxWidth: '500px',
+  border: '1px solid #e0d6c2'
+}));
+
+const AnimatedButton = motion(Button);
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      borderColor: '#d7ccc8',
+    },
+    '&:hover fieldset': {
+      borderColor: '#a1887f',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#8d6e63',
+    },
+  },
+  '& .MuiInputLabel-root.Mui-focused': {
+    color: '#5d4037',
+  },
+}));
 
 const PagoForm = () => {
   const navigate = useNavigate();
@@ -140,8 +191,8 @@ const PagoForm = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Paper elevation={3} sx={{ p: 4, mt: 8 }}>
+    <StyledContainer maxWidth="lg">
+      <StyledPaper elevation={3}>
         <Box
           sx={{
             display: 'flex',
@@ -149,11 +200,28 @@ const PagoForm = () => {
             alignItems: 'center',
           }}
         >
-          <Typography component="h1" variant="h5">
-            Registrar Pago
+          <Typography 
+            component="h1" 
+            variant="h4" 
+            sx={{ 
+              mb: 3, 
+              color: '#5d4037',
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }}
+          >
+            Registrar Nuevo Pago
           </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
+          
+          <Box 
+            component="form" 
+            onSubmit={handleSubmit} 
+            sx={{ 
+              mt: 1,
+              width: '100%'
+            }}
+          >
+            <StyledTextField
               select
               margin="normal"
               required
@@ -165,57 +233,73 @@ const PagoForm = () => {
               onChange={handleChange}
               error={!!formErrors.empleado_id}
               helperText={formErrors.empleado_id}
+              sx={{ mb: 2 }}
             >
               {empleados.map((empleado) => (
-                <MenuItem key={empleado.id} value={empleado.id}>
+                <MenuItem 
+                  key={empleado.id} 
+                  value={empleado.id}
+                  sx={{ '&:hover': { backgroundColor: '#f5f5dc' } }}
+                >
                   {`${empleado.nombre} (${empleado.cedula})`}
                 </MenuItem>
               ))}
-            </TextField>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="libras"
-              label="Libras Cortadas"
-              name="libras"
-              type="number"
-              inputProps={{ 
-                step: "0.01",
-                min: "0.01"
-              }}
-              value={formData.libras}
-              onChange={handleChange}
-              error={!!formErrors.libras}
-              helperText={formErrors.libras}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="precio_libra"
-              label="Precio por Libra"
-              name="precio_libra"
-              type="number"
-              inputProps={{ 
-                step: "0.01",
-                min: "0.01"
-              }}
-              value={formData.precio_libra}
-              onChange={handleChange}
-              error={!!formErrors.precio_libra}
-              helperText={formErrors.precio_libra}
-            />
-            <Button
+            </StyledTextField>
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                id="libras"
+                label="Libras Cortadas"
+                name="libras"
+                type="number"
+                inputProps={{ 
+                  step: "0.01",
+                  min: "0.01"
+                }}
+                value={formData.libras}
+                onChange={handleChange}
+                error={!!formErrors.libras}
+                helperText={formErrors.libras}
+              />
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                id="precio_libra"
+                label="Precio por Libra"
+                name="precio_libra"
+                type="number"
+                inputProps={{ 
+                  step: "0.01",
+                  min: "0.01"
+                }}
+                value={formData.precio_libra}
+                onChange={handleChange}
+                error={!!formErrors.precio_libra}
+                helperText={formErrors.precio_libra}
+              />
+            </Box>
+
+            <AnimatedButton
               fullWidth
               variant="contained"
               color="secondary"
               onClick={calcularPago}
-              sx={{ mt: 2 }}
+              sx={{ 
+                mt: 2,
+                backgroundColor: '#8d6e63',
+                '&:hover': { backgroundColor: '#6d4c41' }
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               Calcular Pago
-            </Button>
-            <TextField
+            </AnimatedButton>
+
+            <StyledTextField
               margin="normal"
               required
               fullWidth
@@ -227,8 +311,15 @@ const PagoForm = () => {
               InputProps={{
                 readOnly: true,
               }}
+              sx={{ 
+                mt: 3,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#f5f5f5',
+                }
+              }}
             />
-            <TextField
+
+            <StyledTextField
               margin="normal"
               required
               fullWidth
@@ -243,30 +334,71 @@ const PagoForm = () => {
               InputLabelProps={{
                 shrink: true,
               }}
+              sx={{ mt: 2 }}
             />
+
             {error && (
-              <Typography color="error" sx={{ mt: 2 }}>
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mt: 3,
+                  border: '1px solid #ef9a9a',
+                  backgroundColor: '#ffebee'
+                }}
+              >
+                <AlertTitle>Error</AlertTitle>
                 {error}
-              </Typography>
+              </Alert>
             )}
+
             {success && (
-              <Typography color="success.main" sx={{ mt: 2 }}>
+              <Alert 
+                severity="success" 
+                sx={{ 
+                  mt: 3,
+                  border: '1px solid #a5d6a7',
+                  backgroundColor: '#e8f5e9'
+                }}
+              >
+                <AlertTitle>Éxito</AlertTitle>
                 {success}
-              </Typography>
+              </Alert>
             )}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Registrar Pago
-            </Button>
+
+            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+              <AnimatedButton
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{
+                  backgroundColor: '#5d4037',
+                  '&:hover': { backgroundColor: '#3e2723' }
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Registrar Pago
+              </AnimatedButton>
+              <AnimatedButton
+                fullWidth
+                variant="outlined"
+                sx={{
+                  color: '#5d4037',
+                  borderColor: '#5d4037',
+                  '&:hover': { borderColor: '#3e2723' }
+                }}
+                onClick={() => navigate('/pagos')}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Cancelar
+              </AnimatedButton>
+            </Box>
           </Box>
         </Box>
-      </Paper>
-    </Container>
+      </StyledPaper>
+    </StyledContainer>
   );
 };
 
-export default PagoForm; 
+export default PagoForm;
