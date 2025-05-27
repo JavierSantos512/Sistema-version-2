@@ -1,104 +1,126 @@
-import React, { useState } from 'react';
-import { Box, Button, Typography, Tabs, Tab, CircularProgress } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Button, TextField, Typography, MenuItem, CircularProgress, Alert } from '@mui/material';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import PagosPDF from './PDFTemplates/PagosPDF';
-import { getPagosByDateRange } from '../../services/pagoService';
+import pagoService from '../../services/pagoService';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 
 const PagosReporte = () => {
-  const [tabValue, setTabValue] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [pagos, setPagos] = useState([]);
-  const [dateRange, setDateRange] = useState({});
+  const [filtro, setFiltro] = useState('dia'); // día, semana, mes
+  const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-
-  const fetchPagos = async (range) => {
-    setLoading(true);
-    try {
-      const data = await getPagosByDateRange(range);
-      setPagos(data);
-      setDateRange(range);
-    } catch (error) {
-      console.error('Error fetching pagos:', error);
-    }
-    setLoading(false);
-  };
-
-  const handleGenerarReporte = () => {
-    let range = {};
-    const today = new Date();
+  const calcularRangoFechas = (filtro, fecha) => {
+    const fechaObj = parseISO(fecha);
     
-    if (tabValue === 0) { // Día
-      range = { 
-        start: new Date(today.setHours(0, 0, 0, 0)),
-        end: new Date(today.setHours(23, 59, 59, 999))
-      };
-    } else if (tabValue === 1) { // Semana
-      const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
-      const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 6));
-      range = { 
-        start: new Date(firstDay.setHours(0, 0, 0, 0)),
-        end: new Date(lastDay.setHours(23, 59, 59, 999))
-      };
-    } else { // Mes
-      range = { 
-        start: new Date(today.getFullYear(), today.getMonth(), 1),
-        end: new Date(today.getFullYear(), today.getMonth() + 1, 0)
-      };
+    switch (filtro) {
+      case 'dia':
+        return {
+          fechaInicio: format(fechaObj, 'yyyy-MM-dd'),
+          fechaFin: format(fechaObj, 'yyyy-MM-dd')
+        };
+      case 'semana':
+        return {
+          fechaInicio: format(startOfWeek(fechaObj), 'yyyy-MM-dd'),
+          fechaFin: format(endOfWeek(fechaObj), 'yyyy-MM-dd')
+        };
+      case 'mes':
+        return {
+          fechaInicio: format(startOfMonth(fechaObj), 'yyyy-MM-dd'),
+          fechaFin: format(endOfMonth(fechaObj), 'yyyy-MM-dd')
+        };
+      default:
+        throw new Error('Filtro no válido');
     }
-    
-    fetchPagos(range);
   };
+
+  useEffect(() => {
+    const fetchPagos = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { fechaInicio, fechaFin } = calcularRangoFechas(filtro, fecha);
+        const data = await pagoService.getPagosPorFecha(fechaInicio, fechaFin);
+        
+        setPagos(data);
+      } catch (err) {
+        console.error("Error al obtener pagos:", err);
+        setError('Error al cargar los pagos. Por favor intente nuevamente.');
+        setPagos([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPagos();
+  }, [filtro, fecha]);
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ color: '#4E342E', mb: 3 }}>
+    <Box sx={{ p: 3, maxWidth: 800, margin: '0 auto' }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
         Reporte de Pagos
       </Typography>
-      
-      <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
-        <Tab label="Por Día" />
-        <Tab label="Por Semana" />
-        <Tab label="Por Mes" />
-      </Tabs>
-      
-      <Button 
-        variant="contained" 
-        onClick={handleGenerarReporte}
-        sx={{ 
-          backgroundColor: '#5D4037',
-          '&:hover': { backgroundColor: '#4E342E' },
-          mb: 3
-        }}
-      >
-        Generar Reporte
-      </Button>
-      
-      {loading && <CircularProgress sx={{ display: 'block', mx: 'auto', my: 2 }} />}
-      
-      {pagos.length > 0 && !loading && (
-        <PDFDownloadLink 
-          document={<PagosPDF pagos={pagos} dateRange={dateRange} period={['Día', 'Semana', 'Mes'][tabValue]} />} 
-          fileName={`reporte_pagos_${['dia', 'semana', 'mes'][tabValue]}_${new Date().toISOString().slice(0, 10)}.pdf`}
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <TextField
+          type="date"
+          label="Selecciona fecha"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          fullWidth
+          InputLabelProps={{
+            shrink: true,
+          }}
+        />
+
+        <TextField
+          select
+          label="Filtrar por"
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          fullWidth
         >
-          {({ loading }) => (
-            <Button 
-              variant="contained" 
-              disabled={loading}
-              sx={{ 
-                backgroundColor: '#4E342E',
-                '&:hover': { backgroundColor: '#3E2723' },
-                py: 1.5,
-                px: 3,
-                fontSize: '1.1rem'
-              }}
+          <MenuItem value="dia">Día</MenuItem>
+          <MenuItem value="semana">Semana</MenuItem>
+          <MenuItem value="mes">Mes</MenuItem>
+        </TextField>
+      </Box>
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && !error && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Total de pagos: {pagos.length}
+          </Typography>
+
+          {pagos.length > 0 ? (
+            <PDFDownloadLink
+              document={<PagosPDF pagos={pagos} />}
+              fileName={`reporte_pagos_${fecha}_${filtro}.pdf`}
+              style={{ textDecoration: 'none' }}
             >
-              {loading ? 'Generando PDF...' : 'Descargar Reporte'}
-            </Button>
+              <Button variant="contained" color="primary" size="large">
+                Descargar Reporte
+              </Button>
+            </PDFDownloadLink>
+          ) : (
+            <Alert severity="info">No hay pagos para el período seleccionado</Alert>
           )}
-        </PDFDownloadLink>
+        </Box>
       )}
     </Box>
   );

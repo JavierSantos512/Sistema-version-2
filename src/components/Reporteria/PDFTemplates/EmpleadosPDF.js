@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   tableColHeader: {
-    width: "20%",
+    width: "25%",
     borderStyle: "solid",
     borderWidth: 1,
     borderLeftWidth: 0,
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4E342E',
   },
   tableCol: {
-    width: "20%",
+    width: "25%",
     borderStyle: "solid",
     borderWidth: 1,
     borderLeftWidth: 0,
@@ -74,7 +74,7 @@ const EmpleadosPDF = ({ empleados }) => (
         <Text style={styles.subtitle}>Sistema de Gestión de Café</Text>
         <Text style={styles.subtitle}>Fecha: {new Date().toLocaleDateString()}</Text>
       </View>
-      
+
       <View style={styles.table}>
         <View style={styles.tableRow}>
           <View style={styles.tableColHeader}>
@@ -84,16 +84,13 @@ const EmpleadosPDF = ({ empleados }) => (
             <Text style={styles.tableCellHeader}>Nombre</Text>
           </View>
           <View style={styles.tableColHeader}>
-            <Text style={styles.tableCellHeader}>Puesto</Text>
-          </View>
-          <View style={styles.tableColHeader}>
             <Text style={styles.tableCellHeader}>Teléfono</Text>
           </View>
           <View style={styles.tableColHeader}>
-            <Text style={styles.tableCellHeader}>Fecha Ingreso</Text>
+            <Text style={styles.tableCellHeader}>Fecha Registro</Text>
           </View>
         </View>
-        
+
         {empleados.map((empleado) => (
           <View style={styles.tableRow} key={empleado.id}>
             <View style={styles.tableCol}>
@@ -103,18 +100,17 @@ const EmpleadosPDF = ({ empleados }) => (
               <Text style={styles.tableCell}>{empleado.nombre}</Text>
             </View>
             <View style={styles.tableCol}>
-              <Text style={styles.tableCell}>{empleado.puesto}</Text>
-            </View>
-            <View style={styles.tableCol}>
               <Text style={styles.tableCell}>{empleado.telefono}</Text>
             </View>
             <View style={styles.tableCol}>
-              <Text style={styles.tableCell}>{new Date(empleado.fecha_ingreso).toLocaleDateString()}</Text>
+              <Text style={styles.tableCell}>
+                {empleado.created_at ? new Date(empleado.created_at).toLocaleDateString('es-ES') : 'N/A'}
+              </Text>
             </View>
           </View>
         ))}
       </View>
-      
+
       <View style={styles.footer}>
         <Text>Página {({ pageNumber, totalPages }) => `${pageNumber} de ${totalPages}`}</Text>
       </View>
