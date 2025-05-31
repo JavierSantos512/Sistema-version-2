@@ -418,68 +418,132 @@ def get_pagos():
         connection = get_db_connection()
         if connection and connection.is_connected():
             cursor = connection.cursor(dictionary=True)
+            
+            # Consulta corregida (nombres de columnas exactos)
             cursor.execute("""
-                SELECT 
-                    p.*,
-                    e.nombre as empleado_nombre,
-                    e.cedula as empleado_dpi,
-                    e.telefono as empleado_telefono
-                FROM pagos p 
-                LEFT JOIN empleados e ON p.empleado_id = e.id
+                SELECT
+                    p.id,
+                    p.fecha_pago,
+                    p.libras_totales AS libras,
+                    p.precio_libra_promedio AS precio_libra,
+                    p.total,
+                    e.id AS empleado_id,
+                    e.nombre AS empleado_nombre,
+                    e.cedula AS empleado_dpi,
+                    e.telefono AS empleado_telefono
+                FROM pagos p
+                LEFT JOIN empleados e ON p.empleados_id = e.id
+                ORDER BY p.fecha_pago DESC
             """)
+
             pagos = cursor.fetchall()
             cursor.close()
             connection.close()
-            
-            # Formatear los datos para el frontend
+
             formatted_pagos = []
             for pago in pagos:
-                formatted_pago = {
-                    "id": pago["id"],
-                    "fecha_pago": pago["fecha_pago"],
-                    "libras": pago["libras"],
-                    "precio_libra": pago["precio_libra"],
-                    "total": pago["total"],
-                    "empleado": {
-                        "id": pago["empleado_id"],
-                        "nombre": pago["empleado_nombre"],
-                        "dpi": pago["empleado_dpi"],
-                        "telefono": pago["empleado_telefono"]
-                    }
-                }
-                formatted_pagos.append(formatted_pago)
-            
-            return jsonify(formatted_pagos)
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    return jsonify([])
+                try:
+                    formatted_pagos.append({
+                        "id": pago["id"],
+                        "fecha_pago": pago["fecha_pago"].strftime("%Y-%m-%d") if pago["fecha_pago"] else None,
+                        "libras": float(pago["libras"]) if pago["libras"] else 0.0,
+                        "precio_libra": float(pago["precio_libra"]) if pago["precio_libra"] else 0.0,
+                        "total": float(pago["total"]) if pago["total"] else 0.0,
+                        "empleado": {
+                            "id": pago["empleado_id"],
+                            "nombre": pago["empleado_nombre"] or "Sin empleado",
+                            "dpi": pago["empleado_dpi"] or "",
+                            "telefono": pago["empleado_telefono"] or ""
+                        }
+                    })
+                except Exception as e:
+                    print(f"Error formateando pago {pago['id']}: {str(e)}")
+                    continue
+
+            return jsonify(formatted_pagos), 200
+
+    except Exception as e:
+        print(f"Error en get_pagos: {str(e)}")
+        return jsonify({"error": "Error al obtener los pagos", "detalle": str(e)}), 500
+
 
 @app.route('/api/pagos', methods=['POST'])
 def create_pago():
     try:
         data = request.get_json()
-        if not data or not all(k in data for k in ['empleado_id', 'libras', 'precio_libra']):
-            return jsonify({"message": "Datos incompletos"}), 400
         
-        total = float(data['libras']) * float(data['precio_libra'])
+        # Validación de campos requeridos
+        if not data or not all(k in data for k in ['empleado_id', 'libras', 'precio_libra']):
+            return jsonify({"error": "Datos incompletos", 
+                          "campos_requeridos": ["empleado_id", "libras", "precio_libra"]}), 400
+        
+        # Validación de tipos de datos
+        try:
+            libras = float(data['libras'])
+            precio_libra = float(data['precio_libra'])
+            empleado_id = int(data['empleado_id'])
+        except ValueError as e:
+            return jsonify({"error": "Datos inválidos", "detalle": str(e)}), 400
+        
+        total = libras * precio_libra
+        fecha_pago = datetime.now().strftime("%Y-%m-%d")  # Fecha actual por defecto
         
         connection = get_db_connection()
         if connection and connection.is_connected():
             cursor = connection.cursor()
-            query = "INSERT INTO pagos (empleado_id, libras, precio_libra, total) VALUES (%s, %s, %s, %s)"
-            cursor.execute(query, (data['empleado_id'], data['libras'], data['precio_libra'], total))
+            
+            # Query corregida (incluye fecha_pago y nombres de columnas exactos)
+            query = """
+                INSERT INTO pagos 
+                    (empleados_id, libras_totales, precio_libra_promedio, total, fecha_pago) 
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (
+                empleado_id,
+                libras,
+                precio_libra,
+                total,
+                fecha_pago
+            ))
+            
             connection.commit()
             new_id = cursor.lastrowid
+            
+            # Obtener el pago recién creado para devolverlo
+            cursor.execute("""
+                SELECT p.*, e.nombre as empleado_nombre, e.cedula as empleado_dpi
+                FROM pagos p
+                LEFT JOIN empleados e ON p.empleados_id = e.id
+                WHERE p.id = %s
+            """, (new_id,))
+            
+            pago_creado = cursor.fetchone()
             cursor.close()
             connection.close()
+            
+            if not pago_creado:
+                return jsonify({"error": "No se pudo recuperar el pago creado"}), 500
+                
             return jsonify({
-                "id": new_id, 
-                "message": "Pago registrado exitosamente",
-                "total": total
+                "id": pago_creado["id"],
+                "fecha_pago": pago_creado["fecha_pago"].strftime("%Y-%m-%d") if pago_creado["fecha_pago"] else None,
+                "libras": float(pago_creado["libras_totales"]),
+                "precio_libra": float(pago_creado["precio_libra_promedio"]),
+                "total": float(pago_creado["total"]),
+                "empleado": {
+                    "id": pago_creado["empleados_id"],
+                    "nombre": pago_creado["empleado_nombre"],
+                    "dpi": pago_creado["empleado_dpi"]
+                },
+                "message": "Pago creado exitosamente"
             }), 201
-    except Error as e:
-        return jsonify({"error": str(e)}), 500
-    return jsonify({"message": "Error al registrar pago"}), 500
+            
+    except Exception as e:
+        print(f"Error en create_pago: {str(e)}")
+        return jsonify({
+            "error": "Error al crear el pago",
+            "detalle": str(e)
+        }), 500
 
 @app.route('/api/pagos/<int:id>', methods=['PUT'])
 def update_pago(id):
@@ -518,6 +582,138 @@ def delete_pago(id):
     except Error as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"message": "Error al eliminar pago"}), 500
+
+# Jornadas
+@app.route('/api/jornadas', methods=['GET'])
+def get_jornadas():
+    try:
+        connection = get_db_connection()
+        if connection and connection.is_connected():
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT 
+                    j.id, j.fecha, j.libras_recolectadas, j.precio_libra,
+                    e.id as empleados_id, 
+                    COALESCE(e.nombre, 'Sin empleado') as empleados_nombre,
+                    COALESCE(e.cedula, '') as empleados_cedula,
+                    COALESCE(e.telefono, '') as empleados_telefono,
+                    f.id as fincas_id, 
+                    COALESCE(f.nombre, 'Sin finca') as fincas_nombre
+                FROM jornadas j
+                LEFT JOIN empleados e ON j.empleados_id = e.id
+                LEFT JOIN fincas f ON j.fincas_id = f.id
+            """)
+
+            jornadas = cursor.fetchall()
+            cursor.close()
+            connection.close()
+
+            formatted_jornadas = []
+            for jornada in jornadas:
+                formatted_jornadas.append({
+                    "id": jornada["id"],
+                    "fecha": jornada["fecha"],
+                    "libras_recolectadas": float(jornada["libras_recolectadas"]) if jornada["libras_recolectadas"] else 0.0,
+                    "precio_libra": float(jornada["precio_libra"]) if jornada["precio_libra"] else 0.0,
+                    "empleado": {
+                        "id": jornada["empleados_id"],
+                        "nombre": jornada["empleados_nombre"],
+                        "dpi": jornada["empleados_cedula"],
+                        "telefono": jornada["empleados_telefono"]
+                    },
+                    "finca": {
+                        "id": jornada["fincas_id"],
+                        "nombre": jornada["fincas_nombre"]
+                    }
+                })
+
+            return jsonify(formatted_jornadas), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/jornadas', methods=['POST'])
+def create_jornada():
+    try:
+        data = request.get_json()
+        if not data or not all(k in data for k in ['empleados_id', 'fincas_id', 'fecha', 'libras_recolectadas', 'precio_libra']):
+            return jsonify({"error": "Datos incompletos"}), 400
+
+        connection = get_db_connection()
+        if connection and connection.is_connected():
+            cursor = connection.cursor()
+            query = """
+            INSERT INTO jornadas (empleados_id, fincas_id, fecha, libras_recolectadas, precio_libra)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (
+                data['empleados_id'],
+                data['fincas_id'],
+                data['fecha'],
+                data['libras_recolectadas'],
+                data['precio_libra']
+            ))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return jsonify({"message": "Jornada creada exitosamente"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/jornadas/<int:id>', methods=['PUT'])
+def update_jornada(id):
+    try:
+        data = request.get_json()
+        if not data or not all(k in data for k in ['empleados_id', 'fincas_id', 'fecha', 'libras_recolectadas', 'precio_libra']):
+            return jsonify({"error": "Datos incompletos"}), 400
+
+        connection = get_db_connection()
+        if connection and connection.is_connected():
+            cursor = connection.cursor()
+            cursor.execute("SELECT id FROM jornadas WHERE id = %s", (id,))
+            if not cursor.fetchone():
+                cursor.close()
+                connection.close()
+                return jsonify({"error": "Jornada no encontrada"}), 404
+
+            query = """
+            UPDATE jornadas 
+            SET empleados_id = %s, fincas_id = %s, fecha = %s, libras_recolectadas = %s, precio_libra = %s
+            WHERE id = %s
+            """
+            cursor.execute(query, (
+                data['empleados_id'],
+                data['fincas_id'],
+                data['fecha'],
+                data['libras_recolectadas'],
+                data['precio_libra'],
+                id
+            ))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return jsonify({"message": "Jornada actualizada"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/jornadas/<int:id>', methods=['DELETE'])
+def delete_jornada(id):
+    try:
+        connection = get_db_connection()
+        if connection and connection.is_connected():
+            cursor = connection.cursor()
+            cursor.execute("SELECT id FROM jornadas WHERE id = %s", (id,))
+            if not cursor.fetchone():
+                cursor.close()
+                connection.close()
+                return jsonify({"error": "Jornada no encontrada"}), 404
+
+            cursor.execute("DELETE FROM jornadas WHERE id = %s", (id,))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return jsonify({"message": "Jornada eliminada"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)

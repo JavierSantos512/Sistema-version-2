@@ -5,8 +5,9 @@ import PeopleIcon from '@mui/icons-material/People';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PaymentIcon from '@mui/icons-material/Payment';
+import WorkIcon from '@mui/icons-material/Work'; // Nuevo icono para Jornadas
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import DescriptionIcon from '@mui/icons-material/Description'; // Nuevo icono para Reportería
+import DescriptionIcon from '@mui/icons-material/Description';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Navbar = () => {
@@ -34,7 +35,8 @@ const Navbar = () => {
     { text: 'Fincas', icon: <AgricultureIcon />, path: '/fincas' },
     { text: 'Asignaciones', icon: <AssignmentIcon />, path: '/asignaciones' },
     { text: 'Pagos', icon: <PaymentIcon />, path: '/pagos' },
-    { text: 'Reportería', icon: <DescriptionIcon />, path: '/reporteria' } // Nuevo item
+    { text: 'Jornadas', icon: <WorkIcon />, path: '/jornadas' }, // Nuevo item
+    { text: 'Reportería', icon: <DescriptionIcon />, path: '/reporteria' }
   ];
 
   return (

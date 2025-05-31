@@ -2,43 +2,69 @@ import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:5000/api/pagos';
 
-const pagoService = {
-    getPagosPorPeriodo: async (periodo, fechaReferencia) => {
-        try {
-            let fechaInicio, fechaFin;
+const PagoService = {
+  /**
+   * Obtiene pagos por rango de fechas
+   * @param {Object} dateRange - Objeto con {start, end} (objetos Date)
+   * @returns {Promise<Array>} Lista de pagos
+   */
+  getPagosByDateRange: async (dateRange) => {
+    try {
+      // Formatear fechas a YYYY-MM-DD
+      const formatDate = (date) => date.toISOString().split('T')[0];
+      
+      const params = {
+        inicio: formatDate(dateRange.start),
+        fin: formatDate(dateRange.end)
+      };
 
-            // Calcula el rango según el período seleccionado
-            switch (periodo) {
-                case 'dia':
-                    fechaInicio = fechaReferencia.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-                    fechaFin = fechaInicio;
-                    break;
-                case 'semana':
-                    const diaSemana = fechaReferencia.getDay(); // 0 (domingo) - 6 (sábado)
-                    fechaInicio = new Date(fechaReferencia);
-                    fechaInicio.setDate(fechaReferencia.getDate() - diaSemana); // Inicio de semana (domingo)
-                    fechaFin = new Date(fechaInicio);
-                    fechaFin.setDate(fechaInicio.getDate() + 6); // Fin de semana (sábado)
-                    fechaInicio = fechaInicio.toISOString().split('T')[0];
-                    fechaFin = fechaFin.toISOString().split('T')[0];
-                    break;
-                case 'mes':
-                    const primerDiaMes = new Date(fechaReferencia.getFullYear(), fechaReferencia.getMonth(), 1);
-                    const ultimoDiaMes = new Date(fechaReferencia.getFullYear(), fechaReferencia.getMonth() + 1, 0);
-                    fechaInicio = primerDiaMes.toISOString().split('T')[0];
-                    fechaFin = ultimoDiaMes.toISOString().split('T')[0];
-                    break;
-                default:
-                    throw new Error('Período no válido. Usa "dia", "semana" o "mes".');
-            }
-
-            const response = await axios.get(`${API_URL}?periodo=${periodo}&inicio=${fechaInicio}&fin=${fechaFin}`);
-            return response.data;
-        } catch (error) {
-            console.error("Error obteniendo pagos:", error);
-            return [];
-        }
+      const response = await axios.get(API_URL, { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error obteniendo pagos por fecha:", error);
+      throw error; // Re-lanzamos el error para manejarlo en el componente
     }
+  },
+
+  /**
+   * Obtiene pagos por período (día, semana, mes)
+   * @param {string} periodo - 'dia', 'semana' o 'mes'
+   * @param {Date} fechaReferencia - Fecha de referencia
+   * @returns {Promise<Array>} Lista de pagos
+   */
+  getPagosPorPeriodo: async (periodo, fechaReferencia) => {
+    try {
+      // Validar período
+      if (!['dia', 'semana', 'mes'].includes(periodo)) {
+        throw new Error('Período no válido. Usa "dia", "semana" o "mes".');
+      }
+
+      const response = await axios.get(`${API_URL}/por-periodo`, {
+        params: {
+          periodo,
+          fecha: fechaReferencia.toISOString()
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error obteniendo pagos por período:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene todos los pagos
+   * @returns {Promise<Array>} Lista completa de pagos
+   */
+  getAllPagos: async () => {
+    try {
+      const response = await axios.get(API_URL);
+      return response.data;
+    } catch (error) {
+      console.error("Error obteniendo todos los pagos:", error);
+      throw error;
+    }
+  }
 };
 
-export default pagoService;
+export default PagoService;
